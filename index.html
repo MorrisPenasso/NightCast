@@ -1,364 +1,292 @@
 <!DOCTYPE html>
 <html lang="it">
+
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>NIGHT//CAST — Real News Terminal v9</title>
-<style>
-  @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Share+Tech+Mono&display=swap');
-  :root{ --cy:#00f0ff; --mg:#ff2a6d; --yl:#f9f002; --bg:#05060f; }
-  *{margin:0;padding:0;box-sizing:border-box;}
-  body{background:var(--bg);color:var(--cy);font-family:'Share Tech Mono',monospace;min-height:100vh;overflow-x:hidden;}
-  body::before{content:"";position:fixed;inset:0;z-index:50;pointer-events:none;
-    background:repeating-linear-gradient(0deg, rgba(0,0,0,.18) 0 2px, transparent 2px 4px);}
-  body::after{content:"";position:fixed;inset:0;z-index:51;pointer-events:none;
-    background:radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,.55) 100%);}
-
-  header{border-bottom:2px solid var(--mg);padding:14px 24px;display:flex;justify-content:space-between;align-items:center;
-    background:linear-gradient(180deg, rgba(255,42,109,.08), transparent);}
-  h1{font-family:'Orbitron';font-weight:900;font-size:1.6rem;letter-spacing:3px;color:#fff;
-    text-shadow:0 0 8px var(--cy), 0 0 22px var(--mg);}
-  h1 span{color:var(--mg);}
-  .status{font-size:.75rem;text-align:right;line-height:1.5;}
-  .dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#0f8;box-shadow:0 0 6px #0f8;margin-right:5px;animation:pulse 1.5s infinite;}
-  .dot.off{background:#f33;box-shadow:0 0 6px #f33;}
-  @keyframes pulse{50%{opacity:.3}}
-
-  .ticker-wrap{border-bottom:1px solid var(--cy);overflow:hidden;background:rgba(0,240,255,.05);}
-  .ticker{white-space:nowrap;display:inline-block;padding:6px 0;animation:tick 60s linear infinite;font-size:.85rem;color:var(--yl);}
-  .ticker b{color:var(--cy);}
-  @keyframes tick{from{transform:translateX(0)}to{transform:translateX(-50%)}}
-
-  main{max-width:1200px;margin:0 auto;padding:24px;display:grid;grid-template-columns:2fr 1fr;gap:24px;}
-  @media(max-width:850px){main{grid-template-columns:1fr}}
-
-  .panel{border:1px solid rgba(0,240,255,.35);background:rgba(10,15,35,.65);
-    clip-path:polygon(0 0, calc(100% - 16px) 0, 100% 16px, 100% 100%, 16px 100%, 0 calc(100% - 16px));}
-  .panel-head{padding:10px 16px;border-bottom:1px solid rgba(0,240,255,.25);font-family:'Orbitron';
-    font-size:.8rem;letter-spacing:2px;display:flex;justify-content:space-between;align-items:center;}
-  .panel-body{padding:16px;max-height:520px;overflow-y:auto;}
-  .panel-body::-webkit-scrollbar{width:6px}
-  .panel-body::-webkit-scrollbar-thumb{background:var(--cy)}
-
-  .screen{aspect-ratio:16/9;background:#02030a;position:relative;overflow:hidden;
-    border-bottom:1px solid rgba(0,240,255,.25);}
-  .photo{position:absolute;inset:0;z-index:2;background-size:cover;background-position:center;
-    animation:kenburns 14s ease-in-out infinite alternate;transition:opacity .5s;opacity:0;}
-  .photo.on{opacity:1;}
-  @keyframes kenburns{from{transform:scale(1)}to{transform:scale(1.12) translate(-1.5%,1.5%)}}
-  .scanfx{position:absolute;inset:0;z-index:3;pointer-events:none;
-    background:repeating-linear-gradient(0deg, rgba(0,20,40,.22) 0 3px, transparent 3px 6px);}
-  #cv{position:absolute;inset:0;width:100%;height:100%;z-index:1;}
-  .channel-badge{position:absolute;top:14px;left:14px;background:var(--mg);color:#000;
-    font-family:'Orbitron';font-weight:700;font-size:.75rem;padding:3px 10px;letter-spacing:1px;z-index:5;}
-  .live{position:absolute;top:14px;right:14px;background:#000;color:#f33;border:1px solid #f33;padding:3px 8px;font-size:.7rem;letter-spacing:2px;z-index:5;animation:pulse 1.2s infinite;}
-  .screen-overlay{position:absolute;left:0;right:0;bottom:0;padding:18px;z-index:4;
-    background:linear-gradient(0deg, rgba(0,0,0,.88) 20%, transparent);}
-  .screen-overlay .idx{font-size:.7rem;color:var(--yl);letter-spacing:2px;margin-bottom:4px;}
-  .headline-big{font-family:'Orbitron','Share Tech Mono',sans-serif;font-weight:700;font-size:1.05rem;
-    color:#fff;text-shadow:0 0 10px var(--cy), 0 2px 6px #000;line-height:1.4;word-wrap:break-word;}
-  .vid-sub{font-size:.72rem;color:#cde;margin-top:5px;line-height:1.5;word-wrap:break-word;text-shadow:0 1px 4px #000;}
-
-  .controls{display:flex;gap:10px;align-items:center;padding:10px 16px;font-size:.8rem;flex-wrap:wrap;}
-  .btn{border:1px solid var(--cy);background:transparent;color:var(--cy);padding:4px 12px;cursor:pointer;
-    font-family:'Share Tech Mono';font-size:.8rem;transition:.2s;}
-  .btn:hover{background:var(--cy);color:#000;box-shadow:0 0 12px var(--cy);}
-  .btn.on{background:var(--cy);color:#000;box-shadow:0 0 12px var(--cy);}
-  .btn.voice-on{background:var(--mg);color:#000;border-color:var(--mg);box-shadow:0 0 12px var(--mg);}
-  select.btn{max-width:170px;}
-  select.btn option{color:#000;background:#000;}
-  .progress{flex:1;height:4px;background:rgba(0,240,255,.15);position:relative;min-width:60px;}
-  .progress i{position:absolute;inset:0;width:0%;background:var(--mg);box-shadow:0 0 8px var(--mg);}
-
-  .item{padding:12px;border:1px solid rgba(0,240,255,.2);margin-bottom:12px;cursor:pointer;transition:.2s;background:rgba(0,240,255,.03);
-    display:flex;gap:10px;}
-  .item:hover{background:rgba(255,42,109,.08);border-color:var(--mg);transform:translateX(4px);}
-  .item.active{border-color:var(--yl);background:rgba(249,240,2,.06);}
-  .thumb{width:74px;height:52px;object-fit:cover;border:1px solid rgba(0,240,255,.3);flex-shrink:0;background:#0a1029;}
-  .item h3{color:#fff;font-size:.85rem;margin:0 0 4px;line-height:1.35;}
-  .item p{font-size:.72rem;color:#7fdcff;line-height:1.45;}
-  .meta{font-size:.62rem;color:#569;margin-top:4px;display:flex;justify-content:space-between;gap:8px;}
-  .meta a{color:var(--mg);text-decoration:none;white-space:nowrap;}
-
-  #boot{position:fixed;inset:0;background:#010208;z-index:100;color:var(--cy);font-size:.9rem;padding:40px;line-height:1.7;transition:opacity .8s;}
-  .glitch{animation:gl .25s infinite;}
-  @keyframes gl{0%{transform:translate(0)}33%{transform:translate(-2px,1px)}66%{transform:translate(2px,-1px)}100%{transform:translate(0)}}
-  #errbox{display:none;position:fixed;bottom:10px;left:10px;z-index:200;background:#300a15;border:1px solid var(--mg);
-    color:#ffb3c8;font-size:.7rem;padding:8px 12px;max-width:420px;}
-  footer{text-align:center;font-size:.7rem;color:#345;padding:20px;}
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NIGHT//CAST — Real News Terminal v9</title>
+  <link rel="stylesheet" href="./style.css">
 </head>
+
 <body>
 
-<div id="boot">NIGHT//CAST OS v2.085 [AV-SYSTEM]<br>> collegamento subnet ISP......... OK<br>> canali attivi: SKY / CORRIERE / AGI<br>> modulo audio synth.............. OK<br>> modulo voce sintetica........... OK<br>> AVVIO TERMINALE_</div>
+  <div id="boot">NIGHT//CAST OS v2.085 [AV-SYSTEM]<br>> collegamento subnet ISP......... OK<br>> canali attivi: SKY /
+    CORRIERE / AGI<br>> modulo audio synth.............. OK<br>> modulo voce sintetica........... OK<br>> AVVIO
+    TERMINALE_</div>
 
-<header>
-  <h1>NIGHT<span>//</span>CAST</h1>
-  <div class="status"><span class="dot" id="netDot"></span><span id="netStat">CONNESSIONE...</span><br>SOURCE: RSS LIVE // ITALIA</div>
-</header>
+  <header>
+    <h1>NIGHT<span>//</span>CAST</h1>
+    <div class="status"><span class="dot" id="netDot"></span><span id="netStat">CONNESSIONE...</span><br>SOURCE: RSS
+      LIVE // ITALIA</div>
+  </header>
 
-<div class="ticker-wrap"><div class="ticker" id="ticker"><b>CARICAMENTO FLUSSO NOTIZIE...</b></div></div>
+  <div class="ticker-wrap">
+    <div class="ticker" id="ticker"><b>CARICAMENTO FLUSSO NOTIZIE...</b></div>
+  </div>
 
-<main>
-  <section class="panel">
-    <div class="panel-head"><span>▓ FEED VIDEO PRINCIPALE</span><span id="count">—</span></div>
-    <div class="screen" id="screen">
-      <canvas id="cv"></canvas>
-      <div class="photo" id="photo"></div>
-      <div class="scanfx"></div>
-      <div class="channel-badge" id="badge">LIVE</div>
-      <div class="live">● LIVE</div>
-      <div class="screen-overlay">
-        <div class="idx" id="vidIdx">STANDBY</div>
-        <div class="headline-big" id="vidHead">Connessione ai feed...</div>
-        <div class="vid-sub" id="vidSub"></div>
+  <main>
+    <section class="panel">
+      <div class="panel-head"><span>▓ FEED VIDEO PRINCIPALE</span><span id="count">—</span></div>
+      <div class="screen" id="screen">
+        <canvas id="cv"></canvas>
+        <div class="photo" id="photo"></div>
+        <div class="scanfx"></div>
+        <div class="channel-badge" id="badge">LIVE</div>
+        <div class="live">● LIVE</div>
+        <div class="screen-overlay">
+          <div class="idx" id="vidIdx">STANDBY</div>
+          <div class="headline-big" id="vidHead">Connessione ai feed...</div>
+          <div class="vid-sub" id="vidSub"></div>
+        </div>
       </div>
-    </div>
-    <div class="controls">
-      <button class="btn" onclick="nextNews()">▶ PROSSIMO</button>
-      <button class="btn" onclick="glitchBurst()">⚡ SCAN</button>
-      <button class="btn" id="ambBtn" onclick="toggleAmb()">🎧 AMBIENTE</button>
-      <button class="btn" id="voiceBtn" onclick="toggleVoice()">🔇 VOCE</button>
-      <select class="btn" id="feedSel" onchange="loadFeed(this.value)">
-        <option value="https://tg24.sky.it/rss/tg24.xml">Sky TG24</option>
-        <option value="https://xml2.corriereobjects.it/rss/homepage.xml">Corriere</option>
-        <option value="https://www.agi.it/rss">AGI</option>
-      </select>
-      <div class="progress"><i id="prog"></i></div>
-      <span id="clock">--:--</span>
-    </div>
-  </section>
+      <div class="controls">
+        <button class="btn" onclick="nextNews()">▶ PROSSIMO</button>
+        <button class="btn" onclick="glitchBurst()">⚡ SCAN</button>
+        <button class="btn" id="ambBtn" onclick="toggleAmb()">🎧 AMBIENTE</button>
+        <button class="btn" id="voiceBtn" onclick="toggleVoice()">🔇 VOCE</button>
+        <select class="btn" id="feedSel" onchange="loadFeed(this.value)">
+          <option value="https://tg24.sky.it/rss/tg24.xml">Sky TG24</option>
+          <option value="https://xml2.corriereobjects.it/rss/homepage.xml">Corriere</option>
+          <option value="https://www.agi.it/rss">AGI</option>
+        </select>
+        <div class="progress"><i id="prog"></i></div>
+        <span id="clock">--:--</span>
+      </div>
+    </section>
 
-  <section class="panel">
-    <div class="panel-head"><span>▓ FLUSSO NOTIZIE</span><span id="srcLabel"></span></div>
-    <div class="panel-body" id="list"><p style="color:#7fdcff;font-size:.8rem">Decodifica flussi in corso...</p></div>
-  </section>
-</main>
+    <section class="panel">
+      <div class="panel-head"><span>▓ FLUSSO NOTIZIE</span><span id="srcLabel"></span></div>
+      <div class="panel-body" id="list">
+        <p style="color:#7fdcff;font-size:.8rem">Decodifica flussi in corso...</p>
+      </div>
+    </section>
+  </main>
 
-<div id="errbox"></div>
-<footer>NIGHT//CAST AV EDITION v9 — audio ambiente + voce sintetica · Sky TG24 · Corriere · AGI · crediti alle testate</footer>
+  <div id="errbox"></div>
+  <footer>NIGHT//CAST AV EDITION v9 — audio ambiente + voce sintetica · Sky TG24 · Corriere · AGI · crediti alle testate
+  </footer>
 
-<script>
-window.onerror=function(msg,src,line){
-  var b=document.getElementById('errbox');
-  b.style.display='block';
-  b.textContent='ERR: '+msg+' (linea '+line+')';
-};
+  <script>
+    window.onerror = function (msg, src, line) {
+      var b = document.getElementById('errbox');
+      b.style.display = 'block';
+      b.textContent = 'ERR: ' + msg + ' (linea ' + line + ')';
+    };
 
-var NEWS=[], idx=0;
+    var NEWS = [], idx = 0;
 
-/* ================= AUDIO AMBIENTE v2 CALM (Blade Runner mode) ================= */ var AC=null, ambOn=false, ambNodes=null; function initAudio(){ if(!AC) AC=new (window.AudioContext||window.webkitAudioContext)(); if(AC.state==='suspended') AC.resume(); } function startAmb(){ initAudio(); var master=AC.createGain(); master.gain.value=0; master.gain.linearRampToValueAtTime(0.14,AC.currentTime+2); /* fade-in dolce */ /* riverbero soft generato al volo */ var verb=AC.createConvolver(); var len=AC.sampleRate*2.5, buf=AC.createBuffer(2,len,AC.sampleRate); for(var ch=0;ch<2;ch++){var d=buf.getChannelData(ch); for(var i=0;i<len;i++){d[i]=(Math.random()*2-1)*Math.pow(1-i/len,3);}} verb.buffer=buf; var wet=AC.createGain(); wet.gain.value=0.5; master.connect(verb); verb.connect(wet); wet.connect(AC.destination); master.connect(AC.destination); /* pad caldo: tre oscillatori in quinta aperta, filtro che respira */ var padGain=AC.createGain(); padGain.gain.value=0.5; var filt=AC.createBiquadFilter(); filt.type='lowpass'; filt.frequency.value=380; filt.Q.value=2; var lfo=AC.createOscillator(); lfo.frequency.value=0.05; var lfoG=AC.createGain(); lfoG.gain.value=140; lfo.connect(lfoG); lfoG.connect(filt.frequency); lfo.start(); var oscs=[]; [110,164.81,220].forEach(function(f,k){ var o=AC.createOscillator(); o.type='sawtooth'; o.frequency.value=f; o.detune.value=k*7-7; o.connect(filt); o.start(); oscs.push(o); }); filt.connect(padGain); padGain.connect(master); /* arpeggio lento e morbido: una nota ogni 1.4s, attacco dolce, coda lunga */ var arpNotes=[220,261.63,329.63,440,329.63,261.63]; var arpGain=AC.createGain(); arpGain.gain.value=0.35; arpGain.connect(master); var step=0; var seqTimer=setInterval(function(){ if(!ambOn) return; var o=AC.createOscillator(); o.type='triangle'; o.frequency.value=arpNotes[step%arpNotes.length]/2; var g=AC.createGain(); g.gain.setValueAtTime(0.0001,AC.currentTime); g.gain.linearRampToValueAtTime(0.22,AC.currentTime+0.05); g.gain.exponentialRampToValueAtTime(0.001,AC.currentTime+1.6); o.connect(g); g.connect(arpGain); o.start(); o.stop(AC.currentTime+1.7); step++; },1400); ambNodes={master:master,osc:oscs.concat([lfo]),seq:seqTimer}; } function stopAmb(){ if(!ambNodes) return; clearInterval(ambNodes.seq); ambNodes.master.gain.linearRampToValueAtTime(0,AC.currentTime+0.6); /* fade-out gentile */ var n=ambNodes; setTimeout(function(){ n.osc.forEach(function(o){try{o.stop();}catch(e){}}); try{n.master.disconnect();}catch(e){} },700); ambNodes=null; } function toggleAmb(){ ambOn=!ambOn; var b=document.getElementById('ambBtn'); if(ambOn){ startAmb(); b.classList.add('on'); b.textContent='🎧 AMBIENTE ON'; } else{ stopAmb(); b.classList.remove('on'); b.textContent='🎧 AMBIENTE'; } } /* blip al cambio notizia (solo se ambiente attivo) */ function blip(){ if(!ambOn||!AC) return; var o=AC.createOscillator(); o.type='sine'; o.frequency.value=880; var g=AC.createGain(); g.gain.setValueAtTime(0.15,AC.currentTime); g.gain.exponentialRampToValueAtTime(0.001,AC.currentTime+0.12); o.connect(g); g.connect(AC.destination); o.start(); o.stop(AC.currentTime+0.15); }
-/* blip al cambio notizia (solo se ambiente attivo) */
-function blip(){
-  if(!ambOn||!AC) return;
-  var o=AC.createOscillator(); o.type='sine'; o.frequency.value=880;
-  var g=AC.createGain();
-  g.gain.setValueAtTime(0.15,AC.currentTime);
-  g.gain.exponentialRampToValueAtTime(0.001,AC.currentTime+0.12);
-  o.connect(g); g.connect(AC.destination);
-  o.start(); o.stop(AC.currentTime+0.15);
-}
-
-/* ================= VOCE SINTETICA ================= */
-var voiceOn=false;
-function toggleVoice(){
-  voiceOn=!voiceOn;
-  var b=document.getElementById('voiceBtn');
-  if(voiceOn){
-    if(!('speechSynthesis' in window)){
-      alert('Voce non supportata da questo browser');
-      voiceOn=false; return;
+/* ================= AUDIO AMBIENTE v2 CALM (Blade Runner mode) ================= */ var AC = null, ambOn = false, ambNodes = null; function initAudio() {if (!AC) AC = new (window.AudioContext || window.webkitAudioContext)(); if (AC.state === 'suspended') AC.resume();} function startAmb() {initAudio(); var master = AC.createGain(); master.gain.value = 0; master.gain.linearRampToValueAtTime(0.14, AC.currentTime + 2); /* fade-in dolce */ /* riverbero soft generato al volo */ var verb = AC.createConvolver(); var len = AC.sampleRate * 2.5, buf = AC.createBuffer(2, len, AC.sampleRate); for (var ch = 0; ch < 2; ch++) {var d = buf.getChannelData(ch); for (var i = 0; i < len; i++) {d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3);} } verb.buffer = buf; var wet = AC.createGain(); wet.gain.value = 0.5; master.connect(verb); verb.connect(wet); wet.connect(AC.destination); master.connect(AC.destination); /* pad caldo: tre oscillatori in quinta aperta, filtro che respira */ var padGain = AC.createGain(); padGain.gain.value = 0.5; var filt = AC.createBiquadFilter(); filt.type = 'lowpass'; filt.frequency.value = 380; filt.Q.value = 2; var lfo = AC.createOscillator(); lfo.frequency.value = 0.05; var lfoG = AC.createGain(); lfoG.gain.value = 140; lfo.connect(lfoG); lfoG.connect(filt.frequency); lfo.start(); var oscs = [];[110, 164.81, 220].forEach(function (f, k) {var o = AC.createOscillator(); o.type = 'sawtooth'; o.frequency.value = f; o.detune.value = k * 7 - 7; o.connect(filt); o.start(); oscs.push(o);}); filt.connect(padGain); padGain.connect(master); /* arpeggio lento e morbido: una nota ogni 1.4s, attacco dolce, coda lunga */ var arpNotes = [220, 261.63, 329.63, 440, 329.63, 261.63]; var arpGain = AC.createGain(); arpGain.gain.value = 0.35; arpGain.connect(master); var step = 0; var seqTimer = setInterval(function () {if (!ambOn) return; var o = AC.createOscillator(); o.type = 'triangle'; o.frequency.value = arpNotes[step % arpNotes.length] / 2; var g = AC.createGain(); g.gain.setValueAtTime(0.0001, AC.currentTime); g.gain.linearRampToValueAtTime(0.22, AC.currentTime + 0.05); g.gain.exponentialRampToValueAtTime(0.001, AC.currentTime + 1.6); o.connect(g); g.connect(arpGain); o.start(); o.stop(AC.currentTime + 1.7); step++;}, 1400); ambNodes = {master: master, osc: oscs.concat([lfo]), seq: seqTimer};} function stopAmb() {if (!ambNodes) return; clearInterval(ambNodes.seq); ambNodes.master.gain.linearRampToValueAtTime(0, AC.currentTime + 0.6); /* fade-out gentile */ var n = ambNodes; setTimeout(function () {n.osc.forEach(function (o) {try {o.stop();} catch (e) { } }); try {n.master.disconnect();} catch (e) { } }, 700); ambNodes = null;} function toggleAmb() {ambOn = !ambOn; var b = document.getElementById('ambBtn'); if (ambOn) {startAmb(); b.classList.add('on'); b.textContent = '🎧 AMBIENTE ON';} else {stopAmb(); b.classList.remove('on'); b.textContent = '🎧 AMBIENTE';} } /* blip al cambio notizia (solo se ambiente attivo) */ function blip() {if (!ambOn || !AC) return; var o = AC.createOscillator(); o.type = 'sine'; o.frequency.value = 880; var g = AC.createGain(); g.gain.setValueAtTime(0.15, AC.currentTime); g.gain.exponentialRampToValueAtTime(0.001, AC.currentTime + 0.12); o.connect(g); g.connect(AC.destination); o.start(); o.stop(AC.currentTime + 0.15);}
+    /* blip al cambio notizia (solo se ambiente attivo) */
+    function blip() {
+      if (!ambOn || !AC) return;
+      var o = AC.createOscillator(); o.type = 'sine'; o.frequency.value = 880;
+      var g = AC.createGain();
+      g.gain.setValueAtTime(0.15, AC.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.001, AC.currentTime + 0.12);
+      o.connect(g); g.connect(AC.destination);
+      o.start(); o.stop(AC.currentTime + 0.15);
     }
-    b.classList.add('voice-on'); b.textContent='🔊 VOCE ON';
-    speakCurrent();
-  }else{
-    window.speechSynthesis.cancel();
-    b.classList.remove('voice-on'); b.textContent='🔇 VOCE';
-  }
-}
-function speakCurrent(){
-  if(!voiceOn||!NEWS.length) return;
-  window.speechSynthesis.cancel();
-  var u=new SpeechSynthesisUtterance(NEWS[idx].t+'. '+(NEWS[idx].s||''));
-  u.lang='it-IT'; u.rate=1.02; u.pitch=0.9;
-  var vs=speechSynthesis.getVoices();
-  for(var i=0;i<vs.length;i++){ if(vs[i].lang.indexOf('it')===0){ u.voice=vs[i]; break; } }
-  speechSynthesis.speak(u);
-}
-/* le voci arrivano asincrone in Chrome: pre-carica */
-if('speechSynthesis' in window){ speechSynthesis.getVoices(); speechSynthesis.onvoiceschanged=function(){}; }
 
-/* ================= FEED ================= */
-function proxied(u){
-  if(!u) return null;
-  u=u.replace(/^https?:\/\//,'');
-  return 'https://images.weserv.nl/?url='+encodeURIComponent(u)+'&w=900&output=jpg';
-}
-function smartImg(img,onOk,onFail){
-  if(!img){ if(onFail)onFail(); return; }
-  var pre=new Image();
-  pre.referrerPolicy='no-referrer';
-  pre.onload=function(){ onOk(img); };
-  pre.onerror=function(){
-    var px=proxied(img);
-    var pre2=new Image();
-    pre2.onload=function(){ onOk(px); };
-    pre2.onerror=function(){ if(onFail)onFail(); };
-    pre2.src=px;
-  };
-  pre.src=img;
-}
-
-function esc(s){return String(s||'').replace(/<[^>]*>/g,'').trim();}
-function firstImg(html){
-  var m=String(html||'').match(/<img[^>]+src=["']([^"']+)["']/i);
-  return m?m[1]:null;
-}
-
-function loadFeed(url){
-  document.getElementById('srcLabel').textContent='SCARICO...';
-  document.getElementById('netStat').textContent='HANDSHAKE...';
-  var api='https://api.rss2json.com/v1/api.json?count=20&rss_url='+encodeURIComponent(url);
-  fetch(api)
-    .then(function(r){return r.json();})
-    .then(function(d){
-      if(d.status!=='ok') throw new Error(d.message||'feed error');
-      NEWS=d.items.map(function(it){
-        var desc=esc(it.description);
-        var img=it.thumbnail || firstImg(it.description) || (it.enclosure&&it.enclosure.link) || null;
-        return {
-          t:esc(it.title),
-          s:desc.slice(0,180)+(desc.length>180?'…':''),
-          time:(it.pubDate||'').slice(17,22),
-          link:it.link,
-          src:d.feed.title,
-          img:img
-        };
-      });
-      renderList();
-      document.getElementById('netDot').classList.remove('off');
-      document.getElementById('netStat').textContent='STREAM LIVE';
-      document.getElementById('srcLabel').textContent=NEWS.length+' ITEMS';
-      document.getElementById('count').textContent=NEWS.length+' ITEMS';
-      buildTicker();
-      loadNews(0,false);
-    })
-    .catch(function(e){
-      document.getElementById('netDot').classList.add('off');
-      document.getElementById('netStat').textContent='FEED OFFLINE';
-      document.getElementById('list').innerHTML='<p style="color:#f67;font-size:.8rem">Impossibile scaricare il feed: '+esc(e.message)+'</p>';
-    });
-}
-
-function renderList(){
-  var list=document.getElementById('list');
-  list.innerHTML='';
-  NEWS.forEach(function(n,i){
-    var d=document.createElement('div');
-    d.className='item'; d.id='it'+i;
-    d.innerHTML='<div class="thumb" id="th'+i+'"></div>'+
-      '<div style="flex:1"><h3>'+n.t+'</h3><p>'+(n.s||'')+'</p>'+
-      '<div class="meta"><span>'+(n.time||'')+' — '+n.src+'</span>'+
-      '<a href="'+n.link+'" target="_blank" rel="noopener">APRI ↗</a></div></div>';
-    d.onclick=function(ev){ if(ev.target.tagName!=='A') loadNews(i,true); };
-    list.appendChild(d);
-    if(n.img){
-      smartImg(n.img,function(src){
-        var th=document.getElementById('th'+i);
-        if(th){ th.style.backgroundImage='url("'+src+'")'; th.style.backgroundSize='cover'; th.style.backgroundPosition='center'; }
-      },function(){});
-    }
-  });
-}
-
-function buildTicker(){
-  var tk=NEWS.map(function(n){return '<b>['+(n.time||'NOW')+']</b> '+n.t+' &nbsp;///&nbsp; ';}).join('');
-  document.getElementById('ticker').innerHTML=tk+tk;
-}
-
-function loadNews(i,g){
-  if(!NEWS.length) return;
-  idx=((i%NEWS.length)+NEWS.length)%NEWS.length;
-  var items=document.querySelectorAll('.item');
-  for(var k=0;k<items.length;k++) items[k].classList.remove('active');
-  var el=document.getElementById('it'+idx);
-  if(el) el.classList.add('active');
-  document.getElementById('vidIdx').textContent='NOTIZIA '+(idx+1)+'/'+NEWS.length+' — '+(NEWS[idx].time||'');
-  document.getElementById('vidHead').innerHTML=NEWS[idx].t;
-  document.getElementById('vidSub').innerHTML=NEWS[idx].s||'';
-  document.getElementById('badge').textContent=(NEWS[idx].src||'LIVE').toUpperCase().slice(0,12);
-  var ph=document.getElementById('photo');
-  ph.classList.remove('on');
-  smartImg(NEWS[idx].img,function(src){
-    ph.style.backgroundImage='url("'+src+'")';
-    ph.classList.add('on');
-  },function(){});
-  if(g){ glitchBurst(); blip(); }
-  if(voiceOn) speakCurrent();
-}
-function nextNews(){ loadNews(idx+1,true); }
-
-setInterval(function(){ if(NEWS.length && !document.hidden) loadNews(idx+1,true); },10000);
-
-setInterval(function(){
-  var now=new Date();
-  document.getElementById('clock').textContent=
-    ('0'+now.getHours()).slice(-2)+':'+('0'+now.getMinutes()).slice(-2);
-  document.getElementById('prog').style.width=((now.getSeconds()/60)*100)+'%';
-},1000);
-
-/* canvas: skyline neon */
-var cv=document.getElementById('cv'), ctx=cv.getContext('2d'), W=0,H=0;
-function rs(){ W=cv.width=cv.offsetWidth||640; H=cv.height=cv.offsetHeight||360; }
-window.addEventListener('resize',rs);
-rs();
-var R=function(a,b){return Math.floor(Math.random()*(b-a)+a);};
-var buildings=[]; for(var x=0;x<80;x++){buildings.push({x:x*30,h:R(40,170),w:R(16,26)});}
-var t=0;
-function draw(){
-  if(W===0) rs();
-  ctx.fillStyle='#060a1c'; ctx.fillRect(0,0,W,H);
-  var g=ctx.createRadialGradient(W*.7,H*.22,10,W*.7,H*.22,220);
-  g.addColorStop(0,'rgba(255,42,109,.4)'); g.addColorStop(1,'rgba(0,0,0,0)');
-  ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
-  for(var j=0;j<buildings.length;j++){
-    var b=buildings[j];
-    var bh=b.h*(H/320), y=H-bh, xx=b.x*(W/80)-((t*.2)%30);
-    ctx.fillStyle='#1a2650'; ctx.fillRect(xx,y,b.w,bh);
-    ctx.strokeStyle='rgba(0,240,255,.6)'; ctx.lineWidth=1.2;
-    ctx.strokeRect(xx+.5,y+.5,b.w,bh);
-    for(var wy=y+6;wy<H-8;wy+=10){
-      for(var wx=xx+3;wx<xx+b.w-3;wx+=7){
-        if(Math.random()<.35){
-          ctx.fillStyle=Math.random()<.08?'#ff2a6d':'#33e0ff';
-          ctx.fillRect(wx,wy,3,4);
+    /* ================= VOCE SINTETICA ================= */
+    var voiceOn = false;
+    function toggleVoice() {
+      voiceOn = !voiceOn;
+      var b = document.getElementById('voiceBtn');
+      if (voiceOn) {
+        if (!('speechSynthesis' in window)) {
+          alert('Voce non supportata da questo browser');
+          voiceOn = false; return;
         }
+        b.classList.add('voice-on'); b.textContent = '🔊 VOCE ON';
+        speakCurrent();
+      } else {
+        window.speechSynthesis.cancel();
+        b.classList.remove('voice-on'); b.textContent = '🔇 VOCE';
       }
     }
-  }
-  var sy=(t*1.5)%H;
-  ctx.fillStyle='rgba(0,240,255,.14)'; ctx.fillRect(0,sy,W,4);
-  t++;
-  requestAnimationFrame(draw);
-}
-function glitchBurst(){
-  var sc=document.getElementById('screen');
-  sc.style.filter='hue-rotate(90deg) contrast(2)';
-  setTimeout(function(){sc.style.filter='';},200);
-  var ov=document.querySelector('.screen-overlay');
-  ov.classList.add('glitch');
-  setTimeout(function(){ov.classList.remove('glitch');},400);
-}
-draw();
+    function speakCurrent() {
+      if (!voiceOn || !NEWS.length) return;
+      window.speechSynthesis.cancel();
+      var u = new SpeechSynthesisUtterance(NEWS[idx].t + '. ' + (NEWS[idx].s || ''));
+      u.lang = 'it-IT'; u.rate = 1.02; u.pitch = 0.9;
+      var vs = speechSynthesis.getVoices();
+      for (var i = 0; i < vs.length; i++) {if (vs[i].lang.indexOf('it') === 0) {u.voice = vs[i]; break;} }
+      speechSynthesis.speak(u);
+    }
+    /* le voci arrivano asincrone in Chrome: pre-carica */
+    if ('speechSynthesis' in window) {speechSynthesis.getVoices(); speechSynthesis.onvoiceschanged = function () { };}
 
-setTimeout(function(){
-  var b=document.getElementById('boot');
-  b.style.opacity=0;
-  setTimeout(function(){b.remove();},900);
-},1600);
+    /* ================= FEED ================= */
+    function proxied(u) {
+      if (!u) return null;
+      u = u.replace(/^https?:\/\//, '');
+      return 'https://images.weserv.nl/?url=' + encodeURIComponent(u) + '&w=900&output=jpg';
+    }
+    function smartImg(img, onOk, onFail) {
+      if (!img) {if (onFail) onFail(); return;}
+      var pre = new Image();
+      pre.referrerPolicy = 'no-referrer';
+      pre.onload = function () {onOk(img);};
+      pre.onerror = function () {
+        var px = proxied(img);
+        var pre2 = new Image();
+        pre2.onload = function () {onOk(px);};
+        pre2.onerror = function () {if (onFail) onFail();};
+        pre2.src = px;
+      };
+      pre.src = img;
+    }
 
-loadFeed(document.getElementById('feedSel').value);
-</script>
+    function esc(s) {return String(s || '').replace(/<[^>]*>/g, '').trim();}
+    function firstImg(html) {
+      var m = String(html || '').match(/<img[^>]+src=["']([^"']+)["']/i);
+      return m ? m[1] : null;
+    }
+
+    function loadFeed(url) {
+      document.getElementById('srcLabel').textContent = 'SCARICO...';
+      document.getElementById('netStat').textContent = 'HANDSHAKE...';
+      var api = 'https://api.rss2json.com/v1/api.json?count=20&rss_url=' + encodeURIComponent(url);
+      fetch(api)
+        .then(function (r) {return r.json();})
+        .then(function (d) {
+          if (d.status !== 'ok') throw new Error(d.message || 'feed error');
+          NEWS = d.items.map(function (it) {
+            var desc = esc(it.description);
+            var img = it.thumbnail || firstImg(it.description) || (it.enclosure && it.enclosure.link) || null;
+            return {
+              t: esc(it.title),
+              s: desc.slice(0, 180) + (desc.length > 180 ? '…' : ''),
+              time: (it.pubDate || '').slice(17, 22),
+              link: it.link,
+              src: d.feed.title,
+              img: img
+            };
+          });
+          renderList();
+          document.getElementById('netDot').classList.remove('off');
+          document.getElementById('netStat').textContent = 'STREAM LIVE';
+          document.getElementById('srcLabel').textContent = NEWS.length + ' ITEMS';
+          document.getElementById('count').textContent = NEWS.length + ' ITEMS';
+          buildTicker();
+          loadNews(0, false);
+        })
+        .catch(function (e) {
+          document.getElementById('netDot').classList.add('off');
+          document.getElementById('netStat').textContent = 'FEED OFFLINE';
+          document.getElementById('list').innerHTML = '<p style="color:#f67;font-size:.8rem">Impossibile scaricare il feed: ' + esc(e.message) + '</p>';
+        });
+    }
+
+    function renderList() {
+      var list = document.getElementById('list');
+      list.innerHTML = '';
+      NEWS.forEach(function (n, i) {
+        var d = document.createElement('div');
+        d.className = 'item'; d.id = 'it' + i;
+        d.innerHTML = '<div class="thumb" id="th' + i + '"></div>' +
+          '<div style="flex:1"><h3>' + n.t + '</h3><p>' + (n.s || '') + '</p>' +
+          '<div class="meta"><span>' + (n.time || '') + ' — ' + n.src + '</span>' +
+          '<a href="' + n.link + '" target="_blank" rel="noopener">APRI ↗</a></div></div>';
+        d.onclick = function (ev) {if (ev.target.tagName !== 'A') loadNews(i, true);};
+        list.appendChild(d);
+        if (n.img) {
+          smartImg(n.img, function (src) {
+            var th = document.getElementById('th' + i);
+            if (th) {th.style.backgroundImage = 'url("' + src + '")'; th.style.backgroundSize = 'cover'; th.style.backgroundPosition = 'center';}
+          }, function () { });
+        }
+      });
+    }
+
+    function buildTicker() {
+      var tk = NEWS.map(function (n) {return '<b>[' + (n.time || 'NOW') + ']</b> ' + n.t + ' &nbsp;///&nbsp; ';}).join('');
+      document.getElementById('ticker').innerHTML = tk + tk;
+    }
+
+    function loadNews(i, g) {
+      if (!NEWS.length) return;
+      idx = ((i % NEWS.length) + NEWS.length) % NEWS.length;
+      var items = document.querySelectorAll('.item');
+      for (var k = 0; k < items.length; k++) items[k].classList.remove('active');
+      var el = document.getElementById('it' + idx);
+      if (el) el.classList.add('active');
+      document.getElementById('vidIdx').textContent = 'NOTIZIA ' + (idx + 1) + '/' + NEWS.length + ' — ' + (NEWS[idx].time || '');
+      document.getElementById('vidHead').innerHTML = NEWS[idx].t;
+      document.getElementById('vidSub').innerHTML = NEWS[idx].s || '';
+      document.getElementById('badge').textContent = (NEWS[idx].src || 'LIVE').toUpperCase().slice(0, 12);
+      var ph = document.getElementById('photo');
+      ph.classList.remove('on');
+      smartImg(NEWS[idx].img, function (src) {
+        ph.style.backgroundImage = 'url("' + src + '")';
+        ph.classList.add('on');
+      }, function () { });
+      if (g) {glitchBurst(); blip();}
+      if (voiceOn) speakCurrent();
+    }
+    function nextNews() {loadNews(idx + 1, true);}
+
+    setInterval(function () {if (NEWS.length && !document.hidden) loadNews(idx + 1, true);}, 10000);
+
+    setInterval(function () {
+      var now = new Date();
+      document.getElementById('clock').textContent =
+        ('0' + now.getHours()).slice(-2) + ':' + ('0' + now.getMinutes()).slice(-2);
+      document.getElementById('prog').style.width = ((now.getSeconds() / 60) * 100) + '%';
+    }, 1000);
+
+    /* canvas: skyline neon */
+    var cv = document.getElementById('cv'), ctx = cv.getContext('2d'), W = 0, H = 0;
+    function rs() {W = cv.width = cv.offsetWidth || 640; H = cv.height = cv.offsetHeight || 360;}
+    window.addEventListener('resize', rs);
+    rs();
+    var R = function (a, b) {return Math.floor(Math.random() * (b - a) + a);};
+    var buildings = []; for (var x = 0; x < 80; x++) {buildings.push({x: x * 30, h: R(40, 170), w: R(16, 26)});}
+    var t = 0;
+    function draw() {
+      if (W === 0) rs();
+      ctx.fillStyle = '#060a1c'; ctx.fillRect(0, 0, W, H);
+      var g = ctx.createRadialGradient(W * .7, H * .22, 10, W * .7, H * .22, 220);
+      g.addColorStop(0, 'rgba(255,42,109,.4)'); g.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+      for (var j = 0; j < buildings.length; j++) {
+        var b = buildings[j];
+        var bh = b.h * (H / 320), y = H - bh, xx = b.x * (W / 80) - ((t * .2) % 30);
+        ctx.fillStyle = '#1a2650'; ctx.fillRect(xx, y, b.w, bh);
+        ctx.strokeStyle = 'rgba(0,240,255,.6)'; ctx.lineWidth = 1.2;
+        ctx.strokeRect(xx + .5, y + .5, b.w, bh);
+        for (var wy = y + 6; wy < H - 8; wy += 10) {
+          for (var wx = xx + 3; wx < xx + b.w - 3; wx += 7) {
+            if (Math.random() < .35) {
+              ctx.fillStyle = Math.random() < .08 ? '#ff2a6d' : '#33e0ff';
+              ctx.fillRect(wx, wy, 3, 4);
+            }
+          }
+        }
+      }
+      var sy = (t * 1.5) % H;
+      ctx.fillStyle = 'rgba(0,240,255,.14)'; ctx.fillRect(0, sy, W, 4);
+      t++;
+      requestAnimationFrame(draw);
+    }
+    function glitchBurst() {
+      var sc = document.getElementById('screen');
+      sc.style.filter = 'hue-rotate(90deg) contrast(2)';
+      setTimeout(function () {sc.style.filter = '';}, 200);
+      var ov = document.querySelector('.screen-overlay');
+      ov.classList.add('glitch');
+      setTimeout(function () {ov.classList.remove('glitch');}, 400);
+    }
+    draw();
+
+    setTimeout(function () {
+      var b = document.getElementById('boot');
+      b.style.opacity = 0;
+      setTimeout(function () {b.remove();}, 900);
+    }, 1600);
+
+    loadFeed(document.getElementById('feedSel').value);
+  </script>
 </body>
-</html>
 
+</html>

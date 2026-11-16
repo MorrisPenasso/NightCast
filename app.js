@@ -1,0 +1,219 @@
+window.onerror = function (msg, src, line) {
+      var b = document.getElementById('errbox');
+      b.style.display = 'block';
+      b.textContent = 'ERR: ' + msg + ' (linea ' + line + ')';
+    };
+
+    var NEWS = [], idx = 0;
+
+/* ================= AUDIO AMBIENTE v2 CALM (Blade Runner mode) ================= */ var AC = null, ambOn = false, ambNodes = null; function initAudio() {if (!AC) AC = new (window.AudioContext || window.webkitAudioContext)(); if (AC.state === 'suspended') AC.resume();} function startAmb() {initAudio(); var master = AC.createGain(); master.gain.value = 0; master.gain.linearRampToValueAtTime(0.14, AC.currentTime + 2); /* fade-in dolce */ /* riverbero soft generato al volo */ var verb = AC.createConvolver(); var len = AC.sampleRate * 2.5, buf = AC.createBuffer(2, len, AC.sampleRate); for (var ch = 0; ch < 2; ch++) {var d = buf.getChannelData(ch); for (var i = 0; i < len; i++) {d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3);} } verb.buffer = buf; var wet = AC.createGain(); wet.gain.value = 0.5; master.connect(verb); verb.connect(wet); wet.connect(AC.destination); master.connect(AC.destination); /* pad caldo: tre oscillatori in quinta aperta, filtro che respira */ var padGain = AC.createGain(); padGain.gain.value = 0.5; var filt = AC.createBiquadFilter(); filt.type = 'lowpass'; filt.frequency.value = 380; filt.Q.value = 2; var lfo = AC.createOscillator(); lfo.frequency.value = 0.05; var lfoG = AC.createGain(); lfoG.gain.value = 140; lfo.connect(lfoG); lfoG.connect(filt.frequency); lfo.start(); var oscs = [];[110, 164.81, 220].forEach(function (f, k) {var o = AC.createOscillator(); o.type = 'sawtooth'; o.frequency.value = f; o.detune.value = k * 7 - 7; o.connect(filt); o.start(); oscs.push(o);}); filt.connect(padGain); padGain.connect(master); /* arpeggio lento e morbido: una nota ogni 1.4s, attacco dolce, coda lunga */ var arpNotes = [220, 261.63, 329.63, 440, 329.63, 261.63]; var arpGain = AC.createGain(); arpGain.gain.value = 0.35; arpGain.connect(master); var step = 0; var seqTimer = setInterval(function () {if (!ambOn) return; var o = AC.createOscillator(); o.type = 'triangle'; o.frequency.value = arpNotes[step % arpNotes.length] / 2; var g = AC.createGain(); g.gain.setValueAtTime(0.0001, AC.currentTime); g.gain.linearRampToValueAtTime(0.22, AC.currentTime + 0.05); g.gain.exponentialRampToValueAtTime(0.001, AC.currentTime + 1.6); o.connect(g); g.connect(arpGain); o.start(); o.stop(AC.currentTime + 1.7); step++;}, 1400); ambNodes = {master: master, osc: oscs.concat([lfo]), seq: seqTimer};} function stopAmb() {if (!ambNodes) return; clearInterval(ambNodes.seq); ambNodes.master.gain.linearRampToValueAtTime(0, AC.currentTime + 0.6); /* fade-out gentile */ var n = ambNodes; setTimeout(function () {n.osc.forEach(function (o) {try {o.stop();} catch (e) { } }); try {n.master.disconnect();} catch (e) { } }, 700); ambNodes = null;} function toggleAmb() {ambOn = !ambOn; var b = document.getElementById('ambBtn'); if (ambOn) {startAmb(); b.classList.add('on'); b.textContent = '🎧 AMBIENTE ON';} else {stopAmb(); b.classList.remove('on'); b.textContent = '🎧 AMBIENTE';} } /* blip al cambio notizia (solo se ambiente attivo) */ function blip() {if (!ambOn || !AC) return; var o = AC.createOscillator(); o.type = 'sine'; o.frequency.value = 880; var g = AC.createGain(); g.gain.setValueAtTime(0.15, AC.currentTime); g.gain.exponentialRampToValueAtTime(0.001, AC.currentTime + 0.12); o.connect(g); g.connect(AC.destination); o.start(); o.stop(AC.currentTime + 0.15);}
+    /* blip al cambio notizia (solo se ambiente attivo) */
+    function blip() {
+      if (!ambOn || !AC) return;
+      var o = AC.createOscillator(); o.type = 'sine'; o.frequency.value = 880;
+      var g = AC.createGain();
+      g.gain.setValueAtTime(0.15, AC.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.001, AC.currentTime + 0.12);
+      o.connect(g); g.connect(AC.destination);
+      o.start(); o.stop(AC.currentTime + 0.15);
+    }
+
+    /* ================= VOCE SINTETICA ================= */
+    var voiceOn = false;
+    function toggleVoice() {
+      voiceOn = !voiceOn;
+      var b = document.getElementById('voiceBtn');
+      if (voiceOn) {
+        if (!('speechSynthesis' in window)) {
+          alert('Voce non supportata da questo browser');
+          voiceOn = false; return;
+        }
+        b.classList.add('voice-on'); b.textContent = '🔊 VOCE ON';
+        speakCurrent();
+      } else {
+        window.speechSynthesis.cancel();
+        b.classList.remove('voice-on'); b.textContent = '🔇 VOCE';
+      }
+    }
+    function speakCurrent() {
+      if (!voiceOn || !NEWS.length) return;
+      window.speechSynthesis.cancel();
+      var u = new SpeechSynthesisUtterance(NEWS[idx].t + '. ' + (NEWS[idx].s || ''));
+      u.lang = 'it-IT'; u.rate = 1.02; u.pitch = 0.9;
+      var vs = speechSynthesis.getVoices();
+      for (var i = 0; i < vs.length; i++) {if (vs[i].lang.indexOf('it') === 0) {u.voice = vs[i]; break;} }
+      speechSynthesis.speak(u);
+    }
+    /* le voci arrivano asincrone in Chrome: pre-carica */
+    if ('speechSynthesis' in window) {speechSynthesis.getVoices(); speechSynthesis.onvoiceschanged = function () { };}
+
+    /* ================= FEED ================= */
+    function proxied(u) {
+      if (!u) return null;
+      u = u.replace(/^https?:\/\//, '');
+      return 'https://images.weserv.nl/?url=' + encodeURIComponent(u) + '&w=900&output=jpg';
+    }
+    function smartImg(img, onOk, onFail) {
+      if (!img) {if (onFail) onFail(); return;}
+      var pre = new Image();
+      pre.referrerPolicy = 'no-referrer';
+      pre.onload = function () {onOk(img);};
+      pre.onerror = function () {
+        var px = proxied(img);
+        var pre2 = new Image();
+        pre2.onload = function () {onOk(px);};
+        pre2.onerror = function () {if (onFail) onFail();};
+        pre2.src = px;
+      };
+      pre.src = img;
+    }
+
+    function esc(s) {return String(s || '').replace(/<[^>]*>/g, '').trim();}
+    function firstImg(html) {
+      var m = String(html || '').match(/<img[^>]+src=["']([^"']+)["']/i);
+      return m ? m[1] : null;
+    }
+
+    function loadFeed(url) {
+      document.getElementById('srcLabel').textContent = 'SCARICO...';
+      document.getElementById('netStat').textContent = 'HANDSHAKE...';
+      var api = 'https://api.rss2json.com/v1/api.json?count=20&rss_url=' + encodeURIComponent(url);
+      fetch(api)
+        .then(function (r) {return r.json();})
+        .then(function (d) {
+          if (d.status !== 'ok') throw new Error(d.message || 'feed error');
+          NEWS = d.items.map(function (it) {
+            var desc = esc(it.description);
+            var img = it.thumbnail || firstImg(it.description) || (it.enclosure && it.enclosure.link) || null;
+            return {
+              t: esc(it.title),
+              s: desc.slice(0, 180) + (desc.length > 180 ? '…' : ''),
+              time: (it.pubDate || '').slice(17, 22),
+              link: it.link,
+              src: d.feed.title,
+              img: img
+            };
+          });
+          renderList();
+          document.getElementById('netDot').classList.remove('off');
+          document.getElementById('netStat').textContent = 'STREAM LIVE';
+          document.getElementById('srcLabel').textContent = NEWS.length + ' ITEMS';
+          document.getElementById('count').textContent = NEWS.length + ' ITEMS';
+          buildTicker();
+          loadNews(0, false);
+        })
+        .catch(function (e) {
+          document.getElementById('netDot').classList.add('off');
+          document.getElementById('netStat').textContent = 'FEED OFFLINE';
+          document.getElementById('list').innerHTML = '<p style="color:#f67;font-size:.8rem">Impossibile scaricare il feed: ' + esc(e.message) + '</p>';
+        });
+    }
+
+    function renderList() {
+      var list = document.getElementById('list');
+      list.innerHTML = '';
+      NEWS.forEach(function (n, i) {
+        var d = document.createElement('div');
+        d.className = 'item'; d.id = 'it' + i;
+        d.innerHTML = '<div class="thumb" id="th' + i + '"></div>' +
+          '<div style="flex:1"><h3>' + n.t + '</h3><p>' + (n.s || '') + '</p>' +
+          '<div class="meta"><span>' + (n.time || '') + ' — ' + n.src + '</span>' +
+          '<a href="' + n.link + '" target="_blank" rel="noopener">APRI ↗</a></div></div>';
+        d.onclick = function (ev) {if (ev.target.tagName !== 'A') loadNews(i, true);};
+        list.appendChild(d);
+        if (n.img) {
+          smartImg(n.img, function (src) {
+            var th = document.getElementById('th' + i);
+            if (th) {th.style.backgroundImage = 'url("' + src + '")'; th.style.backgroundSize = 'cover'; th.style.backgroundPosition = 'center';}
+          }, function () { });
+        }
+      });
+    }
+
+    function buildTicker() {
+      var tk = NEWS.map(function (n) {return '<b>[' + (n.time || 'NOW') + ']</b> ' + n.t + ' &nbsp;///&nbsp; ';}).join('');
+      document.getElementById('ticker').innerHTML = tk + tk;
+    }
+
+    function loadNews(i, g) {
+      if (!NEWS.length) return;
+      idx = ((i % NEWS.length) + NEWS.length) % NEWS.length;
+      var items = document.querySelectorAll('.item');
+      for (var k = 0; k < items.length; k++) items[k].classList.remove('active');
+      var el = document.getElementById('it' + idx);
+      if (el) el.classList.add('active');
+      document.getElementById('vidIdx').textContent = 'NOTIZIA ' + (idx + 1) + '/' + NEWS.length + ' — ' + (NEWS[idx].time || '');
+      document.getElementById('vidHead').innerHTML = NEWS[idx].t;
+      document.getElementById('vidSub').innerHTML = NEWS[idx].s || '';
+      document.getElementById('badge').textContent = (NEWS[idx].src || 'LIVE').toUpperCase().slice(0, 12);
+      var ph = document.getElementById('photo');
+      ph.classList.remove('on');
+      smartImg(NEWS[idx].img, function (src) {
+        ph.style.backgroundImage = 'url("' + src + '")';
+        ph.classList.add('on');
+      }, function () { });
+      if (g) {glitchBurst(); blip();}
+      if (voiceOn) speakCurrent();
+    }
+    function nextNews() {loadNews(idx + 1, true);}
+
+    setInterval(function () {if (NEWS.length && !document.hidden) loadNews(idx + 1, true);}, 10000);
+
+    setInterval(function () {
+      var now = new Date();
+      document.getElementById('clock').textContent =
+        ('0' + now.getHours()).slice(-2) + ':' + ('0' + now.getMinutes()).slice(-2);
+      document.getElementById('prog').style.width = ((now.getSeconds() / 60) * 100) + '%';
+    }, 1000);
+
+    /* canvas: skyline neon */
+    var cv = document.getElementById('cv'), ctx = cv.getContext('2d'), W = 0, H = 0;
+    function rs() {W = cv.width = cv.offsetWidth || 640; H = cv.height = cv.offsetHeight || 360;}
+    window.addEventListener('resize', rs);
+    rs();
+    var R = function (a, b) {return Math.floor(Math.random() * (b - a) + a);};
+    var buildings = []; for (var x = 0; x < 80; x++) {buildings.push({x: x * 30, h: R(40, 170), w: R(16, 26)});}
+    var t = 0;
+    function draw() {
+      if (W === 0) rs();
+      ctx.fillStyle = '#060a1c'; ctx.fillRect(0, 0, W, H);
+      var g = ctx.createRadialGradient(W * .7, H * .22, 10, W * .7, H * .22, 220);
+      g.addColorStop(0, 'rgba(255,42,109,.4)'); g.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+      for (var j = 0; j < buildings.length; j++) {
+        var b = buildings[j];
+        var bh = b.h * (H / 320), y = H - bh, xx = b.x * (W / 80) - ((t * .2) % 30);
+        ctx.fillStyle = '#1a2650'; ctx.fillRect(xx, y, b.w, bh);
+        ctx.strokeStyle = 'rgba(0,240,255,.6)'; ctx.lineWidth = 1.2;
+        ctx.strokeRect(xx + .5, y + .5, b.w, bh);
+        for (var wy = y + 6; wy < H - 8; wy += 10) {
+          for (var wx = xx + 3; wx < xx + b.w - 3; wx += 7) {
+            if (Math.random() < .35) {
+              ctx.fillStyle = Math.random() < .08 ? '#ff2a6d' : '#33e0ff';
+              ctx.fillRect(wx, wy, 3, 4);
+            }
+          }
+        }
+      }
+      var sy = (t * 1.5) % H;
+      ctx.fillStyle = 'rgba(0,240,255,.14)'; ctx.fillRect(0, sy, W, 4);
+      t++;
+      requestAnimationFrame(draw);
+    }
+    function glitchBurst() {
+      var sc = document.getElementById('screen');
+      sc.style.filter = 'hue-rotate(90deg) contrast(2)';
+      setTimeout(function () {sc.style.filter = '';}, 200);
+      var ov = document.querySelector('.screen-overlay');
+      ov.classList.add('glitch');
+      setTimeout(function () {ov.classList.remove('glitch');}, 400);
+    }
+    draw();
+
+    setTimeout(function () {
+      var b = document.getElementById('boot');
+      b.style.opacity = 0;
+      setTimeout(function () {b.remove();}, 900);
+    }, 1600);
+
+    loadFeed(document.getElementById('feedSel').value);

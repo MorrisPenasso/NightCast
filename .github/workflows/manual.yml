@@ -10,6 +10,7 @@ permissions:
 
 env:
   NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+  WATCH_URL: ${{ secrets.WATCH_URL }}
 
 jobs:
   push-news:

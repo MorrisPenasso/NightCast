@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#05060f">
+<title>NIGHT//CAST WATCH</title>
+<link rel="stylesheet" href="style.css">
+<style>
+/* override specifici per la vista watch (piccolo, verticale, tutto in un dito) */
+html,body{height:100%;overflow:hidden;overscroll-behavior:none;}
+.w-deck{position:fixed;inset:0;display:flex;flex-direction:column;background:#05060f;}
+.w-head{display:flex;justify-content:space-between;align-items:center;
+  padding:calc(10px + env(safe-area-inset-top)) 14px 8px;border-bottom:1px solid rgba(0,240,255,.3);}
+.w-head .logo{font-family:'Orbitron',sans-serif;font-weight:900;font-size:.95rem;color:#fff;
+  text-shadow:0 0 8px #00f0ff,0 0 18px #ff2a6d;}
+.w-head .clock{font-size:.8rem;color:#f9f002;}
+.w-meta{display:flex;gap:8px;align-items:center;padding:8px 14px;font-size:.65rem;color:#7fdcff;letter-spacing:1px;}
+.w-badge{background:#ff2a6d;color:#000;font-family:'Orbitron',sans-serif;font-weight:700;
+  padding:2px 8px;font-size:.6rem;letter-spacing:1px;}
+.w-live{color:#f33;animation:pulse 1.2s infinite;}
+.w-main{flex:1;position:relative;overflow:hidden;
+  display:flex;flex-direction:column;justify-content:flex-end;}
+.w-photo{position:absolute;inset:0;background-size:cover;background-position:center;
+  opacity:0;transition:opacity .5s;animation:kenburns 14s ease-in-out infinite alternate;}
+.w-photo.on{opacity:.9;}
+.w-photo::after{content:"";position:absolute;inset:0;
+  background:linear-gradient(0deg, rgba(5,6,15,.97) 30%, rgba(5,6,15,.25) 70%, transparent);}
+.w-scanfx{position:absolute;inset:0;pointer-events:none;
+  background:repeating-linear-gradient(0deg, rgba(0,20,40,.25) 0 3px, transparent 3px 6px);}
+.w-overlay{position:relative;z-index:2;padding:16px 16px calc(20px + env(safe-area-inset-bottom));}
+.w-idx{font-size:.65rem;color:#f9f002;letter-spacing:2px;margin-bottom:6px;}
+.w-title{font-family:'Orbitron',sans-serif;font-weight:700;font-size:1.1rem;line-height:1.35;color:#fff;
+  text-shadow:0 0 10px #00f0ff,0 2px 6px #000;word-wrap:break-word;}
+.w-sub{font-size:.78rem;color:#cde;margin-top:8px;line-height:1.5;max-height:5.6em;overflow:hidden;}
+.w-nav{display:flex;gap:8px;padding:10px 14px calc(14px + env(safe-area-inset-bottom));
+  border-top:1px solid rgba(0,240,255,.3);}
+.w-btn{flex:1;border:1px solid #00f0ff;background:transparent;color:#00f0ff;padding:12px 4px;
+  font-family:'Share Tech Mono',monospace;font-size:.85rem;cursor:pointer;text-align:center;transition:.15s;
+  -webkit-tap-highlight-color:transparent;}
+.w-btn:active{background:#00f0ff;color:#000;box-shadow:0 0 14px #00f0ff;}
+.w-open{border-color:#ff2a6d;color:#ff2a6d;flex:.8;}
+.w-open:active{background:#ff2a6d;color:#000;}
+.w-prog{height:3px;background:rgba(0,240,255,.15);}
+.w-prog i{display:block;height:100%;width:0;background:#ff2a6d;box-shadow:0 0 8px #ff2a6d;
+  transition:width 1s linear;}
+@keyframes kenburns{from{transform:scale(1)}to{transform:scale(1.14) translate(-1.5%,1.5%)}}
+@keyframes pulse{50%{opacity:.3}}
+/* swipe feedback */
+.w-main.swipe-l{transform:translateX(-30px);opacity:.4;}
+.w-main.swipe-r{transform:translateX(30px);opacity:.4;}
+.w-main{transition:transform .15s, opacity .15s;}
+</style>
+</head>
+<body>
+<div class="w-deck">
+  <div class="w-head">
+    <span class="logo">NIGHT//CAST</span>
+    <span class="clock" id="clock">--:--</span>
+  </div>
+  <div class="w-meta">
+    <span class="w-badge" id="src">LIVE</span>
+    <span id="idx">DECK — CARICAMENTO</span>
+    <span class="w-live" style="margin-left:auto">● LIVE</span>
+  </div>
+  <div class="w-main" id="main">
+    <div class="w-photo" id="photo"></div>
+    <div class="w-scanfx"></div>
+    <div class="w-overlay">
+      <div class="w-idx" id="vidIdx">STANDBY</div>
+      <div class="w-title" id="title">Connessione ai feed...</div>
+      <div class="w-sub" id="sub"></div>
+    </div>
+  </div>
+  <div class="w-prog"><i id="prog"></i></div>
+  <div class="w-nav">
+    <button class="w-btn" id="prev">◄ PREV</button>
+    <button class="w-btn w-open" id="open">↗ APRI</button>
+    <button class="w-btn" id="next">NEXT ►</button>
+  </div>
+</div>
+
+<script>
+(function(){
+'use strict';
+var FEEDS=[
+  ['SKY','https://tg24.sky.it/rss/tg24.xml'],
+  ['CORR','https://xml2.corriereobjects.it/rss/homepage.xml'],
+  ['AGI','https://www.agi.it/rss']
+];
+var NEWS=[], idx=0, TIMER=8; /* secondi per notizia */
+function $(id){return document.getElementById(id);}
+
+function proxied(u){ if(!u)return null; return 'https://images.weserv.nl/?url='+encodeURIComponent(u.replace(/^https?:\/\//,''))+'&w=700&output=jpg'; }
+function smartImg(img,onOk,onFail){
+  if(!img){if(onFail)onFail();return;}
+  var pre=new Image();
+  pre.referrerPolicy='no-referrer';
+  pre.onload=function(){onOk(img);};
+  pre.onerror=function(){
+    var px=proxied(img), p2=new Image();
+    p2.onload=function(){onOk(px);};
+    p2.onerror=onFail||function(){};
+    p2.src=px;
+  };
+  pre.src=img;
+}
+function esc(s){return String(s||'').replace(/<[^>]*>/g,'').trim();}
+function firstImg(h){var m=String(h||'').match(/<img[^>]+src=["']([^"']+)["']/i);return m?m[1]:null;}
+
+function parseXML(text,srcName){
+  var doc=new DOMParser().parseFromString(text,'text/xml');
+  var out=[], ns=doc.querySelectorAll('item, entry');
+  for(var i=0;i<ns.length&&i<15;i++){
+    var n=ns[i];
+    var get=function(name){var e=n.querySelector(name);return e?e.textContent:'';};
+    var descRaw=get('description')||get('summary')||get('content');
+    var img=null, enc=n.querySelector('enclosure[url]');
+    if(enc)img=enc.getAttribute('url');
+    if(!img)img=firstImg(descRaw);
+    var link='';
+    var le=n.querySelector('link');
+    if(le)link=(le.textContent||'').trim()||(le.getAttribute('href')||'');
+    var date=get('pubDate')||get('updated');
+    var dm=date.match(/\d{2}:\d{2}/);
+    out.push({t:esc(get('title')),s:esc(descRaw).slice(0,300),link:link,src:srcName,img:img,time:dm?dm[0]:''});
+  }
+  return out;
+}
+
+function fetchTimeout(url,ms){
+  return new Promise(function(res,rej){
+    var d=false,t=setTimeout(function(){if(!d){d=true;rej(new Error('timeout'));}},ms);
+    fetch(url).then(function(r){if(!d){d=true;clearTimeout(t);res(r);}},
+                     function(e){if(!d){d=true;clearTimeout(t);rej(e);}});
+  });
+}
+
+function loadAll(){
+  Promise.all(FEEDS.map(function(f){
+    var api='https://api.rss2json.com/v1/api.json?count=15&rss_url='+encodeURIComponent(f[1]);
+    return fetchTimeout(api,9000).then(function(r){return r.json();}).then(function(d){
+      if(d.status!=='ok')throw 0;
+      return d.items.map(function(it){
+        var desc=esc(it.description);
+        return {t:esc(it.title),s:desc.slice(0,300),link:it.link,src:f[0],
+          img:it.thumbnail||firstImg(it.description)||(it.enclosure&&it.enclosure.link)||null,
+          time:(it.pubDate||'').slice(17,22)};
+      });
+    }).catch(function(){
+      var api2='https://api.allorigins.win/raw?url='+encodeURIComponent(f[1]);
+      return fetchTimeout(api2,10000).then(function(r){return r.text();})
+        .then(function(txt){return parseXML(txt,f[0]);});
+    });
+  })).then(function(groups){
+    var all=[], seen={};
+    groups.forEach(function(g){g.forEach(function(n){ if(n.t&&!seen[n.t]){seen[n.t]=1;all.push(n);} });});
+    NEWS=all;
+    if(NEWS.length){ idx=0; show(0); }
+    else $('title').textContent='Feed irraggiungibili — riprova';
+  }).catch(function(){
+    $('title').textContent='Feed irraggiungibili — riprova';
+  });
+}
+
+function show(i,g){
+  if(!NEWS.length)return;
+  idx=((i%NEWS.length)+NEWS.length)%NEWS.length;
+  var n=NEWS[idx];
+  $('src').textContent=n.src;
+  $('idx').textContent='NOTIZIA '+(idx+1)+'/'+NEWS.length+' — '+(n.time||'');
+  $('title').innerHTML=n.t;
+  $('sub').innerHTML=n.s||'';
+  var ph=$('photo');
+  ph.classList.remove('on');
+  smartImg(n.img,function(src){
+    ph.style.backgroundImage='url("'+src+'")';
+    ph.classList.add('on');
+  },function(){});
+  restartProg();
+}
+function next(dir){
+  var m=$('main');
+  m.classList.add(dir>0?'swipe-l':'swipe-r');
+  setTimeout(function(){
+    m.classList.remove('swipe-l','swipe-r');
+    show(idx+dir);
+  },120);
+}
+$('next').onclick=function(){next(1);};
+$('prev').onclick=function(){next(-1);};
+$('open').onclick=function(){ if(NEWS[idx]&&NEWS[idx].link) window.open(NEWS[idx].link,'_blank'); };
+
+/* swipe */
+var sx=0,sy=0;
+$('main').addEventListener('touchstart',function(e){sx=e.touches[0].clientX;sy=e.touches[0].clientY;},{passive:true});
+$('main').addEventListener('touchend',function(e){
+  var dx=e.changedTouches[0].clientX-sx, dy=e.changedTouches[0].clientY-sy;
+  if(Math.abs(dx)>50&&Math.abs(dx)>Math.abs(dy)) next(dx<0?1:-1);
+},{passive:true});
+
+/* progress + rotazione auto */
+var progT=null;
+function restartProg(){
+  clearInterval(progT);
+  var bar=$('prog'), w=0;
+  bar.style.width='0%';
+  progT=setInterval(function(){
+    w+=1;
+    bar.style.width=(w/(TIMER*10))+'%';
+    if(w>=TIMER*10){ clearInterval(progT); next(1); }
+  },100);
+}
+setInterval(function(){
+  var n=new Date();
+  $('clock').textContent=('0'+n.getHours()).slice(-2)+':'+('0'+n.getMinutes()).slice(-2);
+},1000);
+
+loadAll();
+})();
+</script>
+</body>
+</html>

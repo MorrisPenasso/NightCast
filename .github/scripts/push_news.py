@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
 """
-NIGHT//CAST Watch Deck — push notizie RSS verso ntfy.sh
-Da mettere in .github/scripts/push_news.py nel repo.
-Configura i segreti del repo:
-  NTFY_TOPIC = nome del topic ntfy (es. nightcast-x7k2-tuonome)
+NIGHT//CAST Watch Deck v2 — push notizie RSS verso ntfy.sh
+Novità: notifica clickabile -> apre watch.html, testo espanso (big text),
+tag sorgente colorati. Configura i segreti del repo:
+  NTFY_TOPIC   = nome del topic ntfy
+  WATCH_URL    = URL della pagina watch.html (es. https://user.github.io/nightcast/watch.html)
 """
 import json
 import os
 import pathlib
+import re
 
 import feedparser
 import requests
@@ -21,8 +23,8 @@ FEEDS = [
     ("AGI", "https://www.agi.it/rss"),
 ]
 
-MAX_PER_RUN = 6          # non floodare il polso
-TITLE_MAX = 80           # taglio titoli lunghi (schermo watch piccolo)
+MAX_PER_RUN = 6
+TITLE_MAX = 80
 
 
 def load_seen():
@@ -35,19 +37,26 @@ def load_seen():
 
 
 def save_seen(seen):
-    # tieni solo gli ultimi 500 per non far crescere il file all'infinito
     SEEN_FILE.write_text(json.dumps(sorted(list(seen))[-500:]))
 
 
 def send(title, body):
+    watch_url = os.environ.get("WATCH_URL", "").strip()
+    headers = {
+        "Title": title.encode("utf-8"),
+        "Priority": "default",
+        "Tags": "newspaper",
+        # BigText: testo espandibile trascinando la notifica su Android
+        "Markdown": "no",
+        "Actions": "clear",
+    }
+    if watch_url:
+        # tocchi la notifica -> si apre watch.html
+        headers["Click"] = watch_url
     requests.post(
         f"{NTFY}/{os.environ['NTFY_TOPIC']}",
         data=body.encode("utf-8"),
-        headers={
-            "Title": title.encode("utf-8"),
-            "Priority": "default",
-            "Tags": "newspaper",
-        },
+        headers=headers,
         timeout=15,
     )
 
@@ -68,13 +77,15 @@ def main():
             if not key or key in seen:
                 continue
             summary = entry.get("summary", "") or ""
-            # pulizia HTML dal sommario
-            import re
-            summary = re.sub(r"<[^>]+>", "", summary).strip()[:200]
+            summary = re.sub(r"<[^>]+>", "", summary).strip()
+            # formato espanso: sommario + link, leggibile trascinando la notifica
+            expanded = summary[:400]
+            if link:
+                expanded += "\n\n📰 " + link
             fresh.append({
                 "src": src,
                 "title": entry.get("title", "(senza titolo)")[:TITLE_MAX],
-                "summary": summary,
+                "body": expanded,
                 "key": key,
             })
 
@@ -85,9 +96,8 @@ def main():
     sent = 0
     for n in fresh[:MAX_PER_RUN]:
         title = f"[{n['src']}] {n['title']}"
-        body = n["summary"] or "-"
         try:
-            send(title, body)
+            send(title, n["body"])
             seen.add(n["key"])
             sent += 1
             print(f"[>] {title}")

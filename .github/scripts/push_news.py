@@ -46,20 +46,18 @@ def send(title, body):
         "Title": title.encode("utf-8"),
         "Priority": "default",
         "Tags": "newspaper",
-        # BigText: testo espandibile trascinando la notifica su Android
-        "Markdown": "no",
-        "Actions": "clear",
     }
     if watch_url:
-        # tocchi la notifica -> si apre watch.html
+        # bottone esplicito + tap sull'intera notifica
+        headers["Actions"] = f"view, APRI DECK, {watch_url}, clear=true"
         headers["Click"] = watch_url
-    requests.post(
+    r = requests.post(
         f"{NTFY}/{os.environ['NTFY_TOPIC']}",
         data=body.encode("utf-8"),
         headers=headers,
         timeout=15,
     )
-
+    r.raise_for_status()  # ora un rifiuto di ntfy NON passa più in silenzio
 
 def main():
     seen = load_seen()
